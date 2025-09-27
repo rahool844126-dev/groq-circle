@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#000000">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/icon-192.png">
+  <title>Groq Circle</title>
+  
+  <style>
+    :root {
+      /* Base colors - Dark theme */
+      --bg-primary: #000000;
+      --bg-secondary: #121212;
+      --bg-tertiary: #1e1e1e;
+      --text-primary: #ffffff;
+      --text-secondary: #b0b0b0;
+      --accent-primary: #8c52ff;
+      --accent-secondary: #5d4ffc;
+      --accent-gradient: linear-gradient(135deg, #8c52ff 0%, #5d4ffc 100%);
+      --bubble-user: var(--accent-gradient);
+      --bubble-assistant: #1e1e1e;
+      --bubble-user-text: #ffffff;
+      --bubble-assistant-text: #e0e0e0;
+      --bubble-border: #2a2a2a;
+      --input-bg: #1e1e1e;
+      --divider: rgba(255, 255, 255, 0.1);
+      --button-bg: #1e1e1e;
+      --button-text: #ffffff;
+      --placeholder-text: rgba(255, 255, 255, 0.4);
+      
+      /* Animation timing - 120Hz optimized */
+      --transition-fast: 0.08s cubic-bezier(0.17, 0.67, 0.83, 0.67);
+      --transition-medium: 0.12s cubic-bezier(0.33, 0.01, 0.67, 1);
+      --transition-bounce: 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+      
+      /* UI spacing */
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+      --border-radius: 20px;
+      --bubble-radius: 22px;
+    }
+
+    /* Light theme variables */
+    :root[data-theme="light"] {
+      --bg-primary: #f5f5f5;
+      --bg-secondary: #ffffff;
+      --bg-tertiary: #eaeaea;
+      --text-primary: #000000;
+      --text-secondary: #555555;
+      --bubble-user: var(--accent-gradient);
+      --bubble-assistant: #ffffff;
+      --bubble-user-text: #ffffff;
+      --bubble-assistant-text: #000000;
+      --bubble-border: #e0e0e0;
+      --input-bg: #ffffff;
+      --divider: rgba(0, 0, 0, 0.1);
+      --button-bg: #f0f0f0;
+      --button-text: #000000;
+      --placeholder-text: rgba(0, 0, 0, 0.4);
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-touch-callout: none;
+      touch-action: manipulation;
+      margin: 0;
+      padding: 0;
+    }
+    
+    html {
+      height: -webkit-fill-available;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
+      height: 100vh;
+      height: 100dvh; /* Dynamic viewport height */
+      height: -webkit-fill-available;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      overscroll-behavior: none;
+      will-change: transform;
+    }
+    
+    /* Header styles */
+    #header {
+      background: var(--bg-secondary);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      padding: calc(var(--safe-top) + 12px) 16px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: relative;
+      z-index: 10;
+      box-shadow: 0 1px 0 var(--divider);
+      will-change: transform;
+    }
+    
+    #header-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    #header h1 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text-primary);
+      letter-spacing: -0.01em;
+    }
+    
+    #header-actions {
+      display: flex;
+      gap: 12px;
+    }
+    
+    .header-btn {
+      background: var(--button-bg);
+      border: none;
+      padding: 8px 12px;
+      border-radius: 6px;
+      color: var(--text-primary);
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: transform var(--transition-fast), background var(--transition-medium);
+      will-change: transform;
+    }
+    
+    .header-btn:active {
+      transform: scale(0.88);
+      transition: transform 0.08s;
+    }
+    
+    /* Messages area */
+    #messages-container {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    #messages {
+      height: 100%;
+      overflow-y: auto;
+      overflow-x: hidden;
+      -webkit-overflow-scrolling: touch;
+      padding: 16px;
+      padding-bottom: calc(16px + var(--safe-bottom));
+      scroll-behavior: smooth;
+      will-change: transform;
+      overscroll-behavior-y: contain;
+      transform: translateZ(0);
+    }
+    
+    .scrollable {
+      -webkit-overflow-scrolling: touch;
+      overflow-y: auto;
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      left: 0;
+    }
+    
+    .message-row {
+      margin: 8px 0;
+      display: flex;
+      flex-direction: column;
+      max-width: 90%;
+      animation: messageSlide var(--transition-bounce);
+      position: relative;
+      will-change: transform, opacity;
+    }
+    
+    .message-row.user {
+      align-self: flex-end;
+      align-items: flex-end;
+      margin-left: auto;
+    }
+    
+    .message-row.assistant {
+      align-items: flex-start;
+    }
+    
+    .message {
+      padding: 12px 16px;
+      border-radius: var(--bubble-radius);
+      position: relative;
+      word-break: break-word;
+      user-select: text;
+      -webkit-user-select: text;
+      transform: translateZ(0);
+      will-change: transform;
+    }
+    
+    .message-row.user .message {
+      background: var(--bubble-user);
+      color: var(--bubble-user-text);
+      border-bottom-right-radius: 4px;
+    }
+    
+    .message-row.assistant .message {
+      background: var(--bubble-assistant);
+      color: var(--bubble-assistant-text);
+      border-bottom-left-radius: 4px;
+      border: 1px solid var(--bubble-border);
+    }
+    
+    .message-row.error .message {
+      background: #ff3b30;
+      color: white;
+      border-radius: var(--border-radius);
+    }
+    
+    .message-time {
+      font-size: 11px;
+      opacity: 0.6;
+      margin-top: 4px;
+      margin-left: 4px;
+      margin-right: 4px;
+    }
+    
+    @keyframes messageSlide {
+      0% { 
+        opacity: 0; 
+        transform: translateY(10px) scale(0.97);
+      }
+      100% { 
+        opacity: 1; 
+        transform: translateY(0) scale(1);
+      }
+    }
+    
+    /* Code blocks in messages */
+    .message pre {
+      background: rgba(0, 0, 0, 0.2);
+      padding: 10px;
+      border-radius: 8px;
+      overflow-x: auto;
+      margin: 8px 0;
+    }
+    
+    .message code {
+      font-family: "SF Mono", "Roboto Mono", Menlo, Consolas, monospace;
+      font-size: 14px;
+    }
+    
+    /* Typing indicator */
+    .typing {
+      display: inline-flex;
+      align-items: center;
+      height: 24px;
+      padding: 0 4px;
+    }
+    
+    .typing span {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent-primary);
+      margin: 0 2px;
+      animation: typing 1.4s infinite;
+      will-change: transform, opacity;
+    }
+    
+    .typing span:nth-child(2) { animation-delay: 0.2s; }
+    .typing span:nth-child(3) { animation-delay: 0.4s; }
+    
+    @keyframes typing {
+      0%, 60%, 100% { 
+        opacity: 0.3;
+        transform: scale(0.8);
+      }
+      30% { 
+        opacity: 1;
+        transform: scale(1.2);
+      }
+    }
+    
+    /* Quick actions */
+    #quick-actions {
+      display: flex;
+      gap: 10px;
+      padding: 12px;
+      background: var(--bg-secondary);
+      overflow-x: auto;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+      scroll-snap-type: x mandatory;
+      transform: translateZ(0);
+      will-change: transform;
+      -webkit-overflow-scrolling: touch;
+    }
+    
+    #quick-actions::-webkit-scrollbar {
+      display: none;
+    }
+    
+    .quick-action {
+      background: var(--button-bg);
+      border: 1px solid var(--divider);
+      color: var(--text-primary);
+      padding: 10px 18px;
+      border-radius: 20px;
+      font-size: 15px;
+      font-weight: 500;
+      white-space: nowrap;
+      scroll-snap-align: start;
+      transition: transform var(--transition-fast), background var(--transition-medium);
+      will-change: transform;
+    }
+    
+    .quick-action:active {
+      background: var(--accent-primary);
+      color: white;
+      border-color: var(--accent-primary);
+      transform: scale(0.95);
+    }
+    
+    /* Input area */
+    #input-area {
+      background: var(--bg-secondary);
+      border-top: 1px solid var(--divider);
+      padding: 12px 16px;
+      padding-bottom: calc(12px + var(--safe-bottom));
+      display: flex;
+      gap: 12px;
+      align-items: flex-end;
+      z-index: 10;
+      transform: translateZ(0);
+      will-change: transform;
+    }
+    
+    #input-wrapper {
+      flex: 1;
+      background: var(--input-bg);
+      border-radius: 24px;
+      padding: 6px 16px;
+      display: flex;
+      align-items: center;
+      min-height: 44px;
+      max-height: 120px;
+      transition: all var(--transition-medium);
+      border: 1px solid var(--divider);
+      will-change: transform;
+    }
+    
+    #input-wrapper:focus-within {
+      border-color: var(--accent-primary);
+      box-shadow: 0 0 0 1px var(--accent-primary);
+    }
+    
+    #input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: var(--text-primary);
+      font-size: 16px;
+      outline: none;
+      resize: none;
+      min-height: 24px;
+      max-height: 100px;
+      line-height: 1.5;
+      padding: 4px 0;
+      margin: 0;
+      will-change: height;
+    }
+    
+    #input::placeholder {
+      color: var(--placeholder-text);
+    }
+    
+    #send {
+      width: 44px;
+      height: 44px;
+      background: var(--accent-gradient);
+      color: white;
+      border: none;
+      border-radius: 50%;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform var(--transition-fast);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      will-change: transform;
+    }
+    
+    #send:disabled {
+      opacity: 0.5;
+      transform: scale(0.9);
+    }
+    
+    #send:active:not(:disabled) {
+      transform: scale(0.88);
+      transition: transform 0.08s;
+    }
+    
+    /* Installation prompt */
+    #install-prompt {
+      display: none;
+      background: var(--accent-gradient);
+      color: white;
+      padding: 16px;
+      text-align: center;
+      cursor: pointer;
+      font-weight: 500;
+      font-size: 15px;
+      animation: fadeIn var(--transition-medium);
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    
+    /* Haptic feedback simulation */
+    .haptic {
+      animation: haptic 0.08s;
+    }
+    
+    @keyframes haptic {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(0.97); }
+    }
+    
+    /* Context menu for messages */
+    .context-menu {
+      position: fixed;
+      background: var(--bg-secondary);
+      border-radius: 12px;
+      box-shadow: 0 4px 25px rgba(0, 0, 0, 0.3);
+      z-index: 100;
+      overflow: hidden;
+      display: none;
+      animation: menuAppear var(--transition-bounce);
+      will-change: transform, opacity;
+    }
+    
+    @keyframes menuAppear {
+      from { 
+        opacity: 0; 
+        transform: scale(0.9);
+      }
+      to { 
+        opacity: 1; 
+        transform: scale(1);
+      }
+    }
+    
+    .context-menu-item {
+      padding: 12px 20px;
+      font-size: 15px;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+    }
+    
+    .context-menu-item:active {
+      background: var(--accent-primary);
+      color: white;
+    }
+
+    /* Toast notifications */
+    #toast-container {
+      position: fixed;
+      bottom: 100px;
+      left: 0;
+      right: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      z-index: 1000;
+      pointer-events: none;
+    }
+    
+    .toast {
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 10px 20px;
+      border-radius: 20px;
+      margin: 5px 0;
+      font-size: 14px;
+      animation: toastIn 0.3s, toastOut 0.3s 2s forwards;
+      will-change: transform, opacity;
+    }
+    
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    @keyframes toastOut {
+      from { opacity: 1; transform: translateY(0); }
+      to { opacity: 0; transform: translateY(-20px); }
+    }
+    
+    /* Custom scrollbar for WebKit browsers */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 10px;
+    }
+    
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+    
+    /* Settings panel */
+    #settings-panel {
+      position: fixed;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: 100%;
+      background: var(--bg-secondary);
+      z-index: 200;
+      transform: translateX(100%);
+      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      flex-direction: column;
+      will-change: transform;
+    }
+    
+    #settings-panel.active {
+      transform: translateX(0);
+    }
+    
+    #settings-header {
+      padding: calc(var(--safe-top) + 16px) 16px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--divider);
+    }
+    
+    #settings-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+    }
+    
+    .settings-section {
+      margin-bottom: 24px;
+    }
+    
+    .settings-section-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--accent-primary);
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    
+    .settings-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 0;
+      border-bottom: 1px solid var(--divider);
+    }
+    
+    .settings-item-label {
+      font-size: 16px;
+    }
+    
+    .settings-item-detail {
+      color: var(--text-secondary);
+      font-size: 15px;
+      display: flex;
+      align-items: center;
+    }
+    
+    /* Toggle switch */
+    .toggle {
+      position: relative;
+      width: 50px;
+      height: 28px;
+    }
+    
+    .toggle input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: var(--button-bg);
+      transition: var(--transition-medium);
+      border-radius: 34px;
+    }
+    
+    .toggle-slider:before {
+      position: absolute;
+      content: "";
+      height: 20px;
+      width: 20px;
+      left: 4px;
+      bottom: 4px;
+      background-color: white;
+      transition: var(--transition-medium);
+      border-radius: 50%;
+    }
+    
+    input:checked + .toggle-slider {
+      background-color: var(--accent-primary);
+    }
+    
+    input:checked + .toggle-slider:before {
+      transform: translateX(22px);
+    }
+    
+    /* Swipe gestures */
+    .swipeable {
+      touch-action: pan-y;
+    }
+    
+    /* Initial welcome message */
+    .welcome-logo {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+    
+    .welcome-logo img {
+      width: 80px;
+      height: 80px;
+      border-radius: 20px;
+    }
+    
+    .welcome-text {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    
+    .welcome-title {
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+    
+    .welcome-subtitle {
+      color: var(--text-secondary);
+      font-size: 16px;
+      line-height: 1.5;
+    }
+    
+    /* Models selector */
+    .model-selector {
+      background: var(--bg-tertiary);
+      border-radius: 12px;
+      padding: 4px;
+      display: flex;
+      margin-bottom: 20px;
+    }
+    
+    .model-option {
+      flex: 1;
+      padding: 10px;
+      text-align: center;
+      border-radius: 10px;
+      font-size: 14px;
+      transition: var(--transition-medium);
+    }
+    
+    .model-option.active {
+      background: var(--accent-primary);
+      color: white;
+    }
+    
+    /* Markdown support for messages */
+    .message p {
+      margin-bottom: 8px;
+    }
+    
+    .message p:last-child {
+      margin-bottom: 0;
+    }
+    
+    .message ul, .message ol {
+      margin-left: 20px;
+      margin-bottom: 8px;
+    }
+    
+    .message a {
+      color: var(--accent-primary);
+      text-decoration: none;
+    }
+    
+    .message h1, .message h2, .message h3 {
+      margin: 10px 0;
+    }
+    
+    /* Message actions */
+    .message-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+      opacity: 0;
+      transition: opacity var(--transition-medium);
+    }
+    
+    .message-row:hover .message-actions {
+      opacity: 1;
+    }
+    
+    .message-action-btn {
+      background: var(--bg-tertiary);
+      border: none;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: var(--transition-fast);
+    }
+    
+    .message-action-btn:active {
+      transform: scale(0.9);
+    }
+    
+    /* Accessibility */
+    @media (prefers-reduced-motion) {
+      *, *::before, *::after {
+        animation-duration: 0.001s !important;
+        transition-duration: 0.001s !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="header">
+    <div id="header-title">
+      <h1>Groq Circle</h1>
+    </div>
+    <div id="header-actions">
+      <button class="header-btn" id="clear-btn" title="Clear chat">Clear</button>
+      <button class="header-btn" id="theme-btn" title="Toggle theme">Theme</button>
+      <button class="header-btn" id="settings-btn" title="Settings">Settings</button>
+    </div>
+  </div>
+  
+  <div id="install-prompt">
+    Tap to install Groq Circle on your device
+  </div>
+  
+  <div id="quick-actions">
+    <button class="quick-action" data-prompt="Explain simply:">Explain</button>
+    <button class="quick-action" data-prompt="Give me ideas about:">Ideas</button>
+    <button class="quick-action" data-prompt="Summarize this:">Summarize</button>
+    <button class="quick-action" data-prompt="Translate to English:">Translate</button>
+    <button class="quick-action" data-prompt="Tell me a joke about:">Joke</button>
+    <button class="quick-action" data-prompt="Give pros and cons of:">Pros/Cons</button>
+    <button class="quick-action" data-prompt="Code example for:">Code</button>
+  </div>
+  
+  <div id="messages-container">
+    <div id="messages" class="scrollable"></div>
+  </div>
+  
+  <div id="input-area">
+    <div id="input-wrapper">
+      <textarea id="input" placeholder="Message Groq..." rows="1"></textarea>
+    </div>
+    <button id="send">Send</button>
+  </div>
+  
+  <div id="context-menu" class="context-menu">
+    <div class="context-menu-item" id="copy-message">Copy</div>
+    <div class="context-menu-item" id="read-message">Read aloud</div>
+    <div class="context-menu-item" id="delete-message">Delete</div>
+  </div>
+  
+  <div id="settings-panel">
+    <div id="settings-header">
+      <h2>Settings</h2>
+      <button class="header-btn" id="close-settings">Close</button>
+    </div>
+    <div id="settings-content" class="scrollable">
+      <div class="settings-section">
+        <div class="settings-section-title">Model</div>
+        <div class="model-selector">
+          <div class="model-option active" data-model="llama-3.1-8b-instant">Llama 3.1 8B</div>
+          <div class="model-option" data-model="llama-3.1-70b-versati
